@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>WxCC Task Agent (CDN)</title>
+  <script src="https://unpkg.com/@webex/contact-center/dist/webex-contact-center.min.js"></script>
+</head>
+<body>
+  <h2>WxCC Task Agent</h2>
+  <p id="status">Waiting for tasks...</p>
+  <button id="end-btn" disabled>End Task</button>
+  <button id="decline-btn" disabled>Decline Task</button>
+
+  <script>
+    const statusEl = document.getElementById('status');
+    const endBtn = document.getElementById('end-btn');
+    const declineBtn = document.getElementById('decline-btn');
+
+    // En Desktop Agent, el SDK ya está disponible en window.WebexContactCenter
+    const webex = window.WebexContactCenter;
+
+    if (!webex) {
+      statusEl.textContent = 'Webex SDK not available';
+    }
+
+    let currentTask = null;
+
+    // Eventos de tareas
+    webex.on('task:incoming', async (task) => {
+      console.log('Incoming task:', task);
+      statusEl.textContent = `Incoming task: ${task.data.interactionId}`;
+      currentTask = task;
+
+      try {
+        await task.accept();
+        statusEl.textContent = `Task accepted: ${task.data.interactionId}`;
+        endBtn.disabled = false;
+        declineBtn.disabled = false;
+      } catch (err) {
+        console.error('Error accepting task:', err);
+        statusEl.textContent = `Error accepting task: ${err.message || err}`;
+      }
+    });
+
+    webex.on('task:hydrate', (task) => {
+      console.log('task:hydrate', task);
+      statusEl.textContent = `Hydrated task: ${task.data.interactionId}`;
+      currentTask = task;
+    });
+
+    webex.on('task:assigned', (task) => {
+      console.info('Task assigned:', task.data.interactionId);
+      statusEl.textContent = `Task assigned: ${task.data.interactionId}`;
+      currentTask = task;
+    });
+
+    // Botones
+    endBtn.addEventListener('click', async () => {
+      if (!currentTask) return;
+      try {
+        await currentTask.end();
+        statusEl.textContent = `Task ended: ${currentTask.data.interactionId}`;
+        currentTask = null;
+        endBtn.disabled = true;
+        declineBtn.disabled = true;
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = `Error ending task: ${err.message || err}`;
+      }
+    });
+
+    declineBtn.addEventListener('click', async () => {
+      if (!currentTask) return;
+      try {
+        await currentTask.decline();
+        statusEl.textContent = `Task declined: ${currentTask.data.interactionId}`;
+        currentTask = null;
+        endBtn.disabled = true;
+        declineBtn.disabled = true;
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = `Error declining task: ${err.message || err}`;
+      }
+    });
+  </script>
+</body>
+</html>
