@@ -2,29 +2,30 @@ class WxccTaskAgentAuto extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
+    this.sdkCheckInterval = null;
   }
 
   connectedCallback() {
     this.render();
     console.log("✅ Widget wxcc-taskagentauto cargado");
+    this.waitForSDK();
+  }
 
-    // Escuchar cuando el SDK esté listo
-    if (window.Desktop && window.Desktop.onReady) {
-      window.Desktop.onReady().then(() => {
-        if (window.Desktop.cc) {
-          console.log("🎉 SDK disponible via onReady");
-          this.init(window.Desktop.cc);
-        } else {
-          console.error("❌ SDK sigue sin cc después de onReady");
-          this.shadowRoot.querySelector("#status").textContent =
-            "❌ SDK sin cc";
-        }
-      });
-    } else {
-      console.error("❌ window.Desktop.onReady no existe");
-      this.shadowRoot.querySelector("#status").textContent =
-        "❌ Desktop.onReady no existe";
-    }
+  waitForSDK() {
+    let attempts = 0;
+    this.sdkCheckInterval = setInterval(() => {
+      attempts++;
+      if (window.Desktop && window.Desktop.cc) {
+        clearInterval(this.sdkCheckInterval);
+        console.log("🎉 SDK disponible después de", attempts, "intentos");
+        this.init(window.Desktop.cc);
+      } else if (attempts > 50) { // ~5 segundos
+        clearInterval(this.sdkCheckInterval);
+        console.error("❌ SDK no apareció después de 5s");
+        this.shadowRoot.querySelector("#status").textContent =
+          "❌ SDK no disponible (timeout)";
+      }
+    }, 100);
   }
 
   init(cc) {
