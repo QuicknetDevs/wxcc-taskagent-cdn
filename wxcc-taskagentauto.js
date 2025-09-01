@@ -1,5 +1,3 @@
-// wxcc-taskagentauto.js
-
 class WxccTaskAgentAuto extends HTMLElement {
   constructor() {
     super();
@@ -8,20 +6,31 @@ class WxccTaskAgentAuto extends HTMLElement {
 
   connectedCallback() {
     this.render();
-
     console.log("✅ Widget wxcc-taskagentauto cargado");
 
-    // Verificar que el SDK está disponible
-    if (!window.Desktop || !window.Desktop.cc) {
-      console.error("❌ SDK no disponible: window.Desktop.cc no existe");
+    // Escuchar cuando el SDK esté listo
+    if (window.Desktop && window.Desktop.onReady) {
+      window.Desktop.onReady().then(() => {
+        if (window.Desktop.cc) {
+          console.log("🎉 SDK disponible via onReady");
+          this.init(window.Desktop.cc);
+        } else {
+          console.error("❌ SDK sigue sin cc después de onReady");
+          this.shadowRoot.querySelector("#status").textContent =
+            "❌ SDK sin cc";
+        }
+      });
+    } else {
+      console.error("❌ window.Desktop.onReady no existe");
       this.shadowRoot.querySelector("#status").textContent =
-        "❌ SDK no disponible";
-      return;
+        "❌ Desktop.onReady no existe";
     }
+  }
 
-    const cc = window.Desktop.cc;
+  init(cc) {
+    this.shadowRoot.querySelector("#status").textContent =
+      "✅ SDK conectado";
 
-    // Escuchar eventos de tareas
     cc.on("task:incoming", (task) => {
       console.log("📩 Incoming task:", task);
       this.log(`Incoming task: ${task.data.interactionId}`);
