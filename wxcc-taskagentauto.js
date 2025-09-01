@@ -1,10 +1,8 @@
+// wxcc-taskagentauto.js
+
+console.log("📦 Iniciando carga del widget wxcc-taskagentauto...");
+
 (function () {
-  console.log("📦 Iniciando carga del widget wxcc-taskagentauto...");
-
-  // Nombre del componente
-  const COMPONENT_NAME = "wxcc-taskagentauto";
-
-  // Registrar el custom element
   class WxccTaskAgentAuto extends HTMLElement {
     constructor() {
       super();
@@ -12,73 +10,63 @@
     }
 
     connectedCallback() {
+      this.render();
+      this.initSdk();
+    }
+
+    render() {
       this.shadowRoot.innerHTML = `
         <style>
-          .widget {
+          .card {
             font-family: Arial, sans-serif;
-            padding: 12px;
-          }
-          .title {
-            font-weight: bold;
-            color: #0066cc;
+            padding: 1rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            background: #fff;
           }
           .status {
-            margin-top: 8px;
-            color: #333;
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            color: #444;
           }
         </style>
-        <div class="widget">
-          <div class="title">🚀 WxCC Task Agent Auto</div>
-          <div class="status" id="status">⏳ Cargando SDK...</div>
+        <div class="card">
+          <h3>🚀 WxCC Task Agent Auto</h3>
+          <div id="status" class="status">⏳ Cargando SDK...</div>
+          <div id="agent" class="status"></div>
         </div>
       `;
-
-      this.init();
     }
 
-    async init() {
+    async initSdk() {
       const statusEl = this.shadowRoot.getElementById("status");
+      const agentEl = this.shadowRoot.getElementById("agent");
+
+      if (!window.WebexContactCenter) {
+        console.error("❌ SDK no disponible: window.WebexContactCenter no existe");
+        statusEl.textContent = "❌ SDK no disponible";
+        return;
+      }
 
       try {
-        // Verifica si el SDK ya está disponible
-        if (!window.WebexContactCenter) {
-          console.log("ℹ️ SDK no encontrado. Cargando desde CDN...");
-          statusEl.textContent = "Descargando SDK desde CDN...";
+        console.log("✅ SDK encontrado, inicializando...");
+        const sdk = window.WebexContactCenter.init(); // importante
 
-          await this.loadSdk(
-            "https://unpkg.com/@webex/contact-center@next/umd/contact-center.min.js"
-          );
-        }
+        statusEl.textContent = "✅ SDK inicializado";
 
-        if (window.WebexContactCenter) {
-          console.log("✅ SDK disponible:", window.WebexContactCenter);
-          statusEl.textContent = "✅ SDK cargado correctamente";
-        } else {
-          console.error("❌ No se pudo inicializar el SDK");
-          statusEl.textContent = "❌ SDK no disponible";
-        }
+        // obtener información del agente
+        const agent = await sdk.agent.getAgent();
+        console.log("🙋‍♂️ Agente:", agent);
+
+        agentEl.textContent = `👤 ${agent.firstName} ${agent.lastName} (ID: ${agent.agentId})`;
+
       } catch (err) {
-        console.error("❌ Error cargando SDK:", err);
-        statusEl.textContent = "❌ Error cargando SDK";
+        console.error("❌ Error al inicializar SDK:", err);
+        statusEl.textContent = "❌ Error al inicializar SDK";
       }
     }
-
-    loadSdk(src) {
-      return new Promise((resolve, reject) => {
-        const script = document.createElement("script");
-        script.src = src;
-        script.crossOrigin = "anonymous";
-        script.onload = resolve;
-        script.onerror = reject;
-        document.head.appendChild(script);
-      });
-    }
   }
 
-  if (!customElements.get(COMPONENT_NAME)) {
-    customElements.define(COMPONENT_NAME, WxccTaskAgentAuto);
-    console.log(`✅ Widget ${COMPONENT_NAME} registrado`);
-  } else {
-    console.warn(`⚠️ Widget ${COMPONENT_NAME} ya estaba registrado`);
-  }
+  customElements.define("wxcc-taskagentauto", WxccTaskAgentAuto);
+  console.log("✅ Widget wxcc-taskagentauto registrado");
 })();
