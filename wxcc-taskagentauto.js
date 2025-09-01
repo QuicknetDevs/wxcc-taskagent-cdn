@@ -2,30 +2,48 @@ class WxccTaskAgentAuto extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
-    this.sdkCheckInterval = null;
   }
 
   connectedCallback() {
     this.render();
     console.log("✅ Widget wxcc-taskagentauto cargado");
-    this.waitForSDK();
+    this.ensureSDK();
   }
 
-  waitForSDK() {
+  async ensureSDK() {
+    // 1. Aseguramos cargar el SDK UMD si no está
+    if (!window.WebexContactCenter) {
+      console.log("⏳ Cargando SDK WxCC...");
+      await this.loadScript("https://unpkg.com/@webex/contact-center@next/umd/contact-center.min.js");
+    }
+
+    // 2. Esperamos el objeto (polling)
     let attempts = 0;
-    this.sdkCheckInterval = setInterval(() => {
+    const interval = setInterval(() => {
       attempts++;
-      if (window.Desktop && window.Desktop.cc) {
-        clearInterval(this.sdkCheckInterval);
-        console.log("🎉 SDK disponible después de", attempts, "intentos");
-        this.init(window.Desktop.cc);
-      } else if (attempts > 50) { // ~5 segundos
-        clearInterval(this.sdkCheckInterval);
-        console.error("❌ SDK no apareció después de 5s");
+      const cc = window.Desktop?.cc || window.WebexContactCenter;
+      if (cc) {
+        clearInterval(interval);
+        console.log("🎉 SDK disponible en", cc === window.Desktop?.cc ? "Desktop.cc" : "WebexContactCenter");
+        this.init(cc);
+      } else if (attempts > 100) { // 10s
+        clearInterval(interval);
+        console.error("❌ SDK no apareció después de 10s");
         this.shadowRoot.querySelector("#status").textContent =
           "❌ SDK no disponible (timeout)";
       }
     }, 100);
+  }
+
+  async loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = src;
+      s.crossOrigin = "anonymous";
+      s.onload = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
   }
 
   init(cc) {
@@ -58,27 +76,9 @@ class WxccTaskAgentAuto extends HTMLElement {
   render() {
     this.shadowRoot.innerHTML = `
       <style>
-        :host {
-          display: block;
-          font-family: Arial, sans-serif;
-          font-size: 14px;
-          padding: 8px;
-          border: 1px solid #ccc;
-          border-radius: 8px;
-          background: #f9f9f9;
-        }
-        #status {
-          font-weight: bold;
-          margin-bottom: 6px;
-        }
-        #log {
-          max-height: 200px;
-          overflow-y: auto;
-          font-size: 12px;
-          background: #fff;
-          border: 1px solid #ddd;
-          padding: 4px;
-        }
+        :host { display: block; font-family: Arial, sans-serif; padding: 8px; border: 1px solid #ccc; border-radius: 8px; background: #f9f9f9; }
+        #status { font-weight: bold; margin-bottom: 6px; }
+        #log { max-height: 200px; overflow-y: auto; font-size: 12px; background: #fff; border: 1px solid #ddd; padding: 4px; }
       </style>
       <div id="status">⏳ Esperando SDK...</div>
       <div id="log"></div>
