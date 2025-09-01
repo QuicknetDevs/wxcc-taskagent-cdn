@@ -1,7 +1,3 @@
-// wxcc-taskagentauto.js
-
-console.log("📦 Iniciando carga del widget wxcc-taskagentauto...");
-
 (function () {
   class WxccTaskAgentAuto extends HTMLElement {
     constructor() {
@@ -11,7 +7,7 @@ console.log("📦 Iniciando carga del widget wxcc-taskagentauto...");
 
     connectedCallback() {
       this.render();
-      this.initSdk();
+      this.initDesktopSdk();
     }
 
     render() {
@@ -32,37 +28,36 @@ console.log("📦 Iniciando carga del widget wxcc-taskagentauto...");
         </style>
         <div class="card">
           <h3>🚀 WxCC Task Agent Auto</h3>
-          <div id="status" class="status">⏳ Cargando SDK...</div>
+          <div id="status" class="status">⏳ Esperando Desktop SDK...</div>
           <div id="agent" class="status"></div>
         </div>
       `;
     }
 
-    async initSdk() {
+    async initDesktopSdk() {
       const statusEl = this.shadowRoot.getElementById("status");
       const agentEl = this.shadowRoot.getElementById("agent");
 
-      if (!window.WebexContactCenter) {
-        console.error("❌ SDK no disponible: window.WebexContactCenter no existe");
-        statusEl.textContent = "❌ SDK no disponible";
+      if (!window.Desktop) {
+        console.error("❌ Desktop SDK no disponible");
+        statusEl.textContent = "❌ Desktop SDK no disponible";
         return;
       }
 
       try {
-        console.log("✅ SDK encontrado, inicializando...");
-        const sdk = window.WebexContactCenter.init(); // importante
+        console.log("✅ Desktop SDK encontrado");
+        statusEl.textContent = "✅ Desktop SDK disponible";
 
-        statusEl.textContent = "✅ SDK inicializado";
+        // obtener datos del agente
+        const agentId = await window.Desktop.agent.getAgentId();
+        const agentName = await window.Desktop.agent.getDisplayName();
 
-        // obtener información del agente
-        const agent = await sdk.agent.getAgent();
-        console.log("🙋‍♂️ Agente:", agent);
-
-        agentEl.textContent = `👤 ${agent.firstName} ${agent.lastName} (ID: ${agent.agentId})`;
+        console.log("🙋‍♂️ Agente:", agentId, agentName);
+        agentEl.textContent = `👤 ${agentName} (ID: ${agentId})`;
 
       } catch (err) {
-        console.error("❌ Error al inicializar SDK:", err);
-        statusEl.textContent = "❌ Error al inicializar SDK";
+        console.error("❌ Error usando Desktop SDK:", err);
+        statusEl.textContent = "❌ Error leyendo datos del agente";
       }
     }
   }
