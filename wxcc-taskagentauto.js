@@ -1,89 +1,84 @@
-class WxccTaskAgentAuto extends HTMLElement {
-  constructor() {
-    super();
-    this.attachShadow({ mode: "open" });
-  }
+(function () {
+  console.log("📦 Iniciando carga del widget wxcc-taskagentauto...");
 
-  connectedCallback() {
-    this.render();
-    console.log("✅ Widget wxcc-taskagentauto cargado");
-    this.ensureSDK();
-  }
+  // Nombre del componente
+  const COMPONENT_NAME = "wxcc-taskagentauto";
 
-  async ensureSDK() {
-    // 1. Aseguramos cargar el SDK UMD si no está
-    if (!window.WebexContactCenter) {
-      console.log("⏳ Cargando SDK WxCC...");
-      await this.loadScript("https://unpkg.com/@webex/contact-center@next/umd/contact-center.min.js");
+  // Registrar el custom element
+  class WxccTaskAgentAuto extends HTMLElement {
+    constructor() {
+      super();
+      this.attachShadow({ mode: "open" });
     }
 
-    // 2. Esperamos el objeto (polling)
-    let attempts = 0;
-    const interval = setInterval(() => {
-      attempts++;
-      const cc = window.Desktop?.cc || window.WebexContactCenter;
-      if (cc) {
-        clearInterval(interval);
-        console.log("🎉 SDK disponible en", cc === window.Desktop?.cc ? "Desktop.cc" : "WebexContactCenter");
-        this.init(cc);
-      } else if (attempts > 100) { // 10s
-        clearInterval(interval);
-        console.error("❌ SDK no apareció después de 10s");
-        this.shadowRoot.querySelector("#status").textContent =
-          "❌ SDK no disponible (timeout)";
+    connectedCallback() {
+      this.shadowRoot.innerHTML = `
+        <style>
+          .widget {
+            font-family: Arial, sans-serif;
+            padding: 12px;
+          }
+          .title {
+            font-weight: bold;
+            color: #0066cc;
+          }
+          .status {
+            margin-top: 8px;
+            color: #333;
+          }
+        </style>
+        <div class="widget">
+          <div class="title">🚀 WxCC Task Agent Auto</div>
+          <div class="status" id="status">⏳ Cargando SDK...</div>
+        </div>
+      `;
+
+      this.init();
+    }
+
+    async init() {
+      const statusEl = this.shadowRoot.getElementById("status");
+
+      try {
+        // Verifica si el SDK ya está disponible
+        if (!window.WebexContactCenter) {
+          console.log("ℹ️ SDK no encontrado. Cargando desde CDN...");
+          statusEl.textContent = "Descargando SDK desde CDN...";
+
+          await this.loadSdk(
+            "https://unpkg.com/@webex/contact-center@next/umd/contact-center.min.js"
+          );
+        }
+
+        if (window.WebexContactCenter) {
+          console.log("✅ SDK disponible:", window.WebexContactCenter);
+          statusEl.textContent = "✅ SDK cargado correctamente";
+        } else {
+          console.error("❌ No se pudo inicializar el SDK");
+          statusEl.textContent = "❌ SDK no disponible";
+        }
+      } catch (err) {
+        console.error("❌ Error cargando SDK:", err);
+        statusEl.textContent = "❌ Error cargando SDK";
       }
-    }, 100);
+    }
+
+    loadSdk(src) {
+      return new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = src;
+        script.crossOrigin = "anonymous";
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+    }
   }
 
-  async loadScript(src) {
-    return new Promise((resolve, reject) => {
-      const s = document.createElement("script");
-      s.src = src;
-      s.crossOrigin = "anonymous";
-      s.onload = resolve;
-      s.onerror = reject;
-      document.head.appendChild(s);
-    });
+  if (!customElements.get(COMPONENT_NAME)) {
+    customElements.define(COMPONENT_NAME, WxccTaskAgentAuto);
+    console.log(`✅ Widget ${COMPONENT_NAME} registrado`);
+  } else {
+    console.warn(`⚠️ Widget ${COMPONENT_NAME} ya estaba registrado`);
   }
-
-  init(cc) {
-    this.shadowRoot.querySelector("#status").textContent =
-      "✅ SDK conectado";
-
-    cc.on("task:incoming", (task) => {
-      console.log("📩 Incoming task:", task);
-      this.log(`Incoming task: ${task.data.interactionId}`);
-    });
-
-    cc.on("task:hydrate", (task) => {
-      console.log("♻️ Hydrate task:", task);
-      this.log(`Hydrate task: ${task.data.interactionId}`);
-    });
-
-    cc.on("task:assigned", (task) => {
-      console.log("✅ Task accepted:", task.data.interactionId);
-      this.log(`Task accepted: ${task.data.interactionId}`);
-    });
-  }
-
-  log(msg) {
-    const logBox = this.shadowRoot.querySelector("#log");
-    const line = document.createElement("div");
-    line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-    logBox.appendChild(line);
-  }
-
-  render() {
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host { display: block; font-family: Arial, sans-serif; padding: 8px; border: 1px solid #ccc; border-radius: 8px; background: #f9f9f9; }
-        #status { font-weight: bold; margin-bottom: 6px; }
-        #log { max-height: 200px; overflow-y: auto; font-size: 12px; background: #fff; border: 1px solid #ddd; padding: 4px; }
-      </style>
-      <div id="status">⏳ Esperando SDK...</div>
-      <div id="log"></div>
-    `;
-  }
-}
-
-customElements.define("wxcc-taskagentauto", WxccTaskAgentAuto);
+})();
